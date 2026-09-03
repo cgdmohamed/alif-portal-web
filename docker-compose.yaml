@@ -19,5 +19,7 @@ services:
       # Exposes this service's own public URL to Coolify (and to the
       # container, if ever needed) — no explicit `ports:` mapping, since
       # the service listens on 80 and Coolify's proxy routes to it once a
-      # domain is assigned in the UI.
-      - SERVICE_FQDN_ADMIN
+      # domain is assigned in the UI. Written as KEY=value (not a bare
+      # KEY) — a bare magic-var entry here has been observed to break
+      # Coolify's compose parser ("non-string key in ...environment: 0").
+      - SERVICE_FQDN_ADMIN=${SERVICE_FQDN_ADMIN}
