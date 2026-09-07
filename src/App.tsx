@@ -77,6 +77,7 @@ export default function App() {
         <Route path="/school/enrollment-codes" element={<SchoolEnrollmentCodes />} />
         <Route path="/school/package" element={<SchoolPackage />} />
         <Route path="/school/settings" element={<SchoolSettings />} />
+        <Route path="/school/live-session" element={<LiveSession />} />
       </Route>
       </Route>
 

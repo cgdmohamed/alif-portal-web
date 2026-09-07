@@ -185,7 +185,11 @@ export default function SchoolDashboard() {
                   </div>
                   <button
                     onClick={() =>
-                      navigate('/live-session', {
+                      navigate('/school/live-session', {
+                        // NOTE: m.id is a class_meetings (schedule) row, not a real
+                        // meetings (video) entity id — the two aren't linked yet, so
+                        // this can't join real video (see meetingsApi.join). Preview
+                        // only until that's wired up.
                         state: { title: m.title, trainer: m.trainer, className: m.className, count: m.studentsCount },
                       })
                     }
