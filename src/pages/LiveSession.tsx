@@ -1,5 +1,12 @@
-import { useEffect, useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { useLocation, useSearchParams } from 'react-router-dom'
+import AgoraRTC, {
+  type IAgoraRTCClient,
+  type IAgoraRTCRemoteUser,
+  type ICameraVideoTrack,
+  type ILocalVideoTrack,
+  type IMicrophoneAudioTrack,
+} from 'agora-rtc-sdk-ng'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
 import Avatar from '../components/ui/Avatar'
@@ -7,8 +14,7 @@ import Badge from '../components/ui/Badge'
 import Modal from '../components/ui/Modal'
 import { Field } from '../components/ui/Input'
 import ActivityPreviewModal from '../components/ActivityPreviewModal'
-import { initialParticipants } from '../data/liveSessionParticipants'
-import { meetingsApi, type MeetingSessionBlock } from '../lib/meetingsApi'
+import { meetingsApi, type ApiMeeting, type MeetingSessionBlock } from '../lib/meetingsApi'
 
 interface LiveSessionState {
   meetingId?: string
@@ -36,18 +42,37 @@ function formatDuration(minutes: number) {
   return `${String(minutes).padStart(2, '0')}:00`
 }
 
+type VideoState = 'idle' | 'connecting' | 'connected' | 'error'
+
 /**
- * NOTE: participants/mute/kick/poll/whiteboard below are local UI-only —
- * there is no backend for live participant rosters or in-call collaboration
- * tools (the Agora integration is stubbed, not a real video SDK). Session
- * plan / push-activity / completion ARE wired to the real API.
+ * NOTE: poll/whiteboard below are still local UI-only — there is no backend
+ * for in-call collaboration tools. Video (camera/mic/screen share, local +
+ * remote tiles) is real Agora RTC now (see agoraClient wiring below).
+ * Per-participant moderation (force-mute someone else, kick, co-host) isn't
+ * implemented because it needs a signaling channel or server-side
+ * moderation API that doesn't exist yet — rather than fake it, the
+ * participants panel only shows real, observable state (who's connected,
+ * whether they've published audio/video).
  */
 export default function LiveSession() {
   const location = useLocation()
+  const [searchParams] = useSearchParams()
   const state = (location.state ?? {}) as LiveSessionState
-  const sessionTitle = state.title ?? 'لقاء مباشر'
-  const sessionTrainer = state.trainer ?? ''
-  const isLiveNow = Boolean(state.title)
+  // A bare ?meetingId= link (no router state) works too — makes a live
+  // session bookmarkable/shareable instead of only reachable by clicking
+  // through from the dashboard's "today's meetings" list.
+  const meetingId = state.meetingId ?? searchParams.get('meetingId') ?? undefined
+
+  const [fetchedMeeting, setFetchedMeeting] = useState<ApiMeeting | null>(null)
+  useEffect(() => {
+    if (state.meetingId || !meetingId) return
+    meetingsApi.get(meetingId).then(setFetchedMeeting).catch(() => {})
+  }, [meetingId, state.meetingId])
+
+  const sessionTitle = state.title ?? fetchedMeeting?.title ?? 'لقاء مباشر'
+  const sessionTrainer = state.trainer ?? fetchedMeeting?.classEntity.teacher?.name ?? ''
+  const sessionCount = state.count ?? fetchedMeeting?.classEntity.studentsCount ?? 0
+  const isLiveNow = Boolean(state.title || fetchedMeeting)
 
   const [sessionPlan, setSessionPlan] = useState<MeetingSessionBlock[]>([])
   const [planError, setPlanError] = useState<string | null>(null)
@@ -55,11 +80,7 @@ export default function LiveSession() {
   const [pollOpen, setPollOpen] = useState(false)
   const [pollLaunched, setPollLaunched] = useState(false)
   const [whiteboard, setWhiteboard] = useState(false)
-  const [muted, setMuted] = useState(false)
   const [ended, setEnded] = useState(false)
-  const [participants, setParticipants] = useState(initialParticipants)
-  const [menuFor, setMenuFor] = useState<string | null>(null)
-  const [alertSent, setAlertSent] = useState<string | null>(null)
 
   const [leftTab, setLeftTab] = useState<'plan' | 'participants'>('plan')
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null)
@@ -73,36 +94,149 @@ export default function LiveSession() {
   const [rating, setRating] = useState<number | null>(null)
   const [completionNote, setCompletionNote] = useState('')
 
+  // ---------- Agora RTC ----------
+  const clientRef = useRef<IAgoraRTCClient | null>(null)
+  const localTracksRef = useRef<{ mic: IMicrophoneAudioTrack; cam: ICameraVideoTrack } | null>(null)
+  const screenTrackRef = useRef<ILocalVideoTrack | null>(null)
+  const localVideoRef = useRef<HTMLDivElement>(null)
+
+  const [videoState, setVideoState] = useState<VideoState>('idle')
+  const [videoError, setVideoError] = useState<string | null>(null)
+  const [remoteUsers, setRemoteUsers] = useState<IAgoraRTCRemoteUser[]>([])
+  const [selfMicOn, setSelfMicOn] = useState(true)
+  const [selfCamOn, setSelfCamOn] = useState(true)
+  const [screenSharing, setScreenSharing] = useState(false)
+
   useEffect(() => {
-    if (!state.meetingId) return
+    if (!meetingId) return
     meetingsApi
-      .sessionPlan(state.meetingId)
+      .sessionPlan(meetingId)
       .then((blocks) => {
         setSessionPlan(blocks)
         setActiveBlockId(blocks[0]?.id ?? null)
       })
       .catch(() => setPlanError('تعذر تحميل خطة الجلسة'))
-  }, [state.meetingId])
+  }, [meetingId])
 
-  function toggleMuteOne(name: string) {
-    setParticipants((ps) => ps.map((p) => (p.name === name ? { ...p, muted: !p.muted } : p)))
-    setMenuFor(null)
+  useEffect(() => {
+    if (!meetingId) return
+    let cancelled = false
+    const client = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' })
+    clientRef.current = client
+
+    client.on('user-published', async (user, mediaType) => {
+      await client.subscribe(user, mediaType)
+      if (mediaType === 'video') {
+        setRemoteUsers((prev) => [...prev.filter((u) => u.uid !== user.uid), user])
+      } else {
+        user.audioTrack?.play()
+      }
+    })
+    client.on('user-unpublished', (user, mediaType) => {
+      if (mediaType === 'video') setRemoteUsers((prev) => prev.filter((u) => u.uid !== user.uid))
+    })
+    client.on('user-left', (user) => {
+      setRemoteUsers((prev) => prev.filter((u) => u.uid !== user.uid))
+    })
+
+    async function connect() {
+      try {
+        setVideoState('connecting')
+        const creds = await meetingsApi.join(meetingId!)
+        if (cancelled) return
+        await client.join(creds.appId, creds.channelName, creds.token, null)
+        const [micTrack, camTrack] = await AgoraRTC.createMicrophoneAndCameraTracks()
+        if (cancelled) {
+          micTrack.close()
+          camTrack.close()
+          return
+        }
+        localTracksRef.current = { mic: micTrack, cam: camTrack }
+        await client.publish([micTrack, camTrack])
+        if (localVideoRef.current) camTrack.play(localVideoRef.current)
+        setVideoState('connected')
+      } catch (err) {
+        if (!cancelled) {
+          setVideoState('error')
+          setVideoError(err instanceof Error ? err.message : 'تعذر الاتصال باللقاء — تحقّق من صلاحيات الكاميرا والمايك')
+        }
+      }
+    }
+    connect()
+
+    return () => {
+      cancelled = true
+      localTracksRef.current?.mic.close()
+      localTracksRef.current?.cam.close()
+      localTracksRef.current = null
+      screenTrackRef.current?.close()
+      screenTrackRef.current = null
+      client.leave().catch(() => {})
+      clientRef.current = null
+    }
+  }, [meetingId])
+
+  async function toggleSelfMic() {
+    const tracks = localTracksRef.current
+    if (!tracks) return
+    await tracks.mic.setEnabled(!selfMicOn)
+    setSelfMicOn((v) => !v)
   }
 
-  function toggleCohost(name: string) {
-    setParticipants((ps) => ps.map((p) => (p.name === name ? { ...p, cohost: !p.cohost } : p)))
-    setMenuFor(null)
+  async function toggleSelfCam() {
+    const tracks = localTracksRef.current
+    if (!tracks) return
+    await tracks.cam.setEnabled(!selfCamOn)
+    setSelfCamOn((v) => !v)
   }
 
-  function kick(name: string) {
-    setParticipants((ps) => ps.filter((p) => p.name !== name))
-    setMenuFor(null)
+  async function stopScreenShare() {
+    const client = clientRef.current
+    const tracks = localTracksRef.current
+    const screenTrack = screenTrackRef.current
+    if (screenTrack) {
+      await client?.unpublish(screenTrack).catch(() => {})
+      screenTrack.close()
+      screenTrackRef.current = null
+    }
+    if (tracks && client) {
+      await client.publish(tracks.cam).catch(() => {})
+      if (localVideoRef.current) tracks.cam.play(localVideoRef.current)
+    }
+    setScreenSharing(false)
   }
 
-  function alertStudent(name: string) {
-    setMenuFor(null)
-    setAlertSent(name)
-    setTimeout(() => setAlertSent(null), 2000)
+  async function toggleScreenShare() {
+    if (screenSharing) {
+      await stopScreenShare()
+      return
+    }
+    const client = clientRef.current
+    const tracks = localTracksRef.current
+    if (!client) return
+    try {
+      const created = await AgoraRTC.createScreenVideoTrack({ encoderConfig: '1080p_1' }, 'auto')
+      const track = Array.isArray(created) ? created[0] : created
+      screenTrackRef.current = track
+      if (tracks) await client.unpublish(tracks.cam)
+      await client.publish(track)
+      if (localVideoRef.current) track.play(localVideoRef.current)
+      track.on('track-ended', () => {
+        // Fired when the user stops sharing via the browser's own picker UI.
+        stopScreenShare()
+      })
+      setScreenSharing(true)
+    } catch {
+      // User cancelled the screen picker — nothing to clean up.
+    }
+  }
+
+  async function endMeeting() {
+    localTracksRef.current?.mic.close()
+    localTracksRef.current?.cam.close()
+    screenTrackRef.current?.close()
+    await clientRef.current?.leave().catch(() => {})
+    setEnded(true)
   }
 
   function openCompletion(block: MeetingSessionBlock) {
@@ -113,15 +247,15 @@ export default function LiveSession() {
   }
 
   async function saveCompletion() {
-    if (!completing || !state.meetingId || rating === null) return
+    if (!completing || !meetingId || rating === null) return
     const checklistRecord = Object.fromEntries(completionChecklist.map((item, i) => [item, checklist[i]]))
-    await meetingsApi.complete(state.meetingId, { checklist: checklistRecord, rating, note: completionNote || undefined })
+    await meetingsApi.complete(meetingId, { checklist: checklistRecord, rating, note: completionNote || undefined })
     setCompleting(null)
   }
 
   async function pushToStudents() {
-    if (!activeBlock || !state.meetingId) return
-    await meetingsApi.pushActivity(state.meetingId, activeBlock.id)
+    if (!activeBlock || !meetingId) return
+    await meetingsApi.pushActivity(meetingId, activeBlock.id)
     setPushSent(true)
   }
 
@@ -129,6 +263,8 @@ export default function LiveSession() {
     setPushOpen(false)
     setPushSent(false)
   }
+
+  const liveCount = videoState === 'connected' ? remoteUsers.length + 1 : sessionCount ?? 0
 
   return (
     <div dir="rtl" className="flex h-[calc(100vh-56px)] flex-col gap-4 lg:flex-row">
@@ -182,7 +318,7 @@ export default function LiveSession() {
         )}
 
         <div
-          className={`flex flex-1 items-center justify-center rounded-xl2 text-white transition-colors ${
+          className={`relative flex flex-1 items-center justify-center overflow-hidden rounded-xl2 text-white transition-colors ${
             whiteboard ? 'bg-white text-navy' : 'bg-navy-darker'
           }`}
         >
@@ -196,23 +332,78 @@ export default function LiveSession() {
               <span className="text-3xl">🖊</span>
               <div className="text-sm font-bold text-ink-soft">السبورة الذكية — جاهزة للرسم والمشاركة</div>
             </div>
-          ) : (
+          ) : !meetingId ? (
+            // Preview/no-video context (e.g. opened without a real meeting id).
             <div className="text-center">
+              <div className="mb-2 font-sans text-lg font-extrabold">{sessionTitle}</div>
+              <div className="text-xs text-white/60">{sessionTrainer} · {sessionCount ?? 0} مشارك</div>
+            </div>
+          ) : videoState === 'error' ? (
+            <div className="text-center">
+              <div className="mb-2 font-sans text-sm font-bold text-danger-light">{videoError}</div>
+            </div>
+          ) : videoState !== 'connected' ? (
+            <div className="text-center">
+              <div className="mb-2 font-sans text-lg font-extrabold">جارٍ الاتصال باللقاء…</div>
+              <div className="text-xs text-white/60">{sessionTrainer}</div>
+            </div>
+          ) : (
+            <>
               {isLiveNow && (
-                <div className="mb-2 flex items-center justify-center gap-1.5 text-[11px] font-bold text-danger-light">
+                <div className="absolute right-4 top-4 z-10 flex items-center gap-1.5 rounded-full bg-black/40 px-3 py-1.5 text-[11px] font-bold text-danger-light">
                   <span className="h-2 w-2 animate-pulse rounded-full bg-danger-light" /> مباشر الآن
                 </div>
               )}
-              <div className="mb-2 font-sans text-lg font-extrabold">{sessionTitle}</div>
-              <div className="text-xs text-white/60">{sessionTrainer} · {state.count ?? participants.length} مشارك</div>
-              {muted && <Badge tone="warning" className="mt-3">تم كتم كل المشاركين</Badge>}
-            </div>
+              <div className="absolute left-4 top-4 z-10 rounded-full bg-black/40 px-3 py-1.5 text-[11px] font-bold text-white/80">
+                {liveCount} مشارك
+              </div>
+              <div
+                className={`grid h-full w-full gap-1.5 p-1.5 ${
+                  remoteUsers.length === 0 ? 'grid-cols-1' : remoteUsers.length === 1 ? 'grid-cols-2' : 'grid-cols-2 grid-rows-2'
+                }`}
+              >
+                <div ref={localVideoRef} className="relative overflow-hidden rounded-lg bg-black">
+                  <span className="absolute bottom-2 right-2 rounded bg-black/50 px-2 py-0.5 text-[10px] font-semibold text-white">أنت</span>
+                  {!selfCamOn && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-navy-darker">
+                      <Avatar initials="أ" size={44} />
+                    </div>
+                  )}
+                </div>
+                {remoteUsers.map((user) => (
+                  <div
+                    key={user.uid}
+                    ref={(el) => {
+                      if (el && user.videoTrack) user.videoTrack.play(el)
+                    }}
+                    className="relative overflow-hidden rounded-lg bg-black"
+                  >
+                    <span className="absolute bottom-2 right-2 rounded bg-black/50 px-2 py-0.5 text-[10px] font-semibold text-white">
+                      مشارك #{user.uid}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </div>
         <Card className="flex flex-wrap items-center justify-between gap-2.5">
           <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" size="sm" onClick={() => setMuted((m) => !m)}>
-              🎤 {muted ? 'إلغاء كتم الكل' : 'كتم الكل'}
+            <Button
+              variant={selfMicOn ? 'secondary' : 'danger'}
+              size="sm"
+              disabled={videoState !== 'connected'}
+              onClick={toggleSelfMic}
+            >
+              🎤 {selfMicOn ? 'كتم المايك' : 'إلغاء الكتم'}
+            </Button>
+            <Button
+              variant={selfCamOn ? 'secondary' : 'danger'}
+              size="sm"
+              disabled={videoState !== 'connected'}
+              onClick={toggleSelfCam}
+            >
+              📷 {selfCamOn ? 'إيقاف الكاميرا' : 'تشغيل الكاميرا'}
             </Button>
             <Button variant="secondary" size="sm" onClick={() => setPollOpen(true)}>📊 استطلاع</Button>
             <Button
@@ -222,9 +413,16 @@ export default function LiveSession() {
             >
               🖊 السبورة الذكية
             </Button>
-            <Button variant="secondary" size="sm">🖥 مشاركة الشاشة</Button>
+            <Button
+              variant={screenSharing ? 'primary' : 'secondary'}
+              size="sm"
+              disabled={videoState !== 'connected'}
+              onClick={toggleScreenShare}
+            >
+              🖥 {screenSharing ? 'إيقاف مشاركة الشاشة' : 'مشاركة الشاشة'}
+            </Button>
           </div>
-          <Button variant="danger" size="sm" onClick={() => setEnded(true)}>إنهاء اللقاء</Button>
+          <Button variant="danger" size="sm" onClick={endMeeting}>إنهاء اللقاء</Button>
         </Card>
       </div>
 
@@ -233,7 +431,7 @@ export default function LiveSession() {
           {(
             [
               ['plan', 'خطة الجلسة'],
-              ['participants', `المشاركون (${participants.length})`],
+              ['participants', `المشاركون (${liveCount || 1})`],
             ] as const
           ).map(([value, label]) => (
             <button
@@ -273,44 +471,27 @@ export default function LiveSession() {
             ))}
           </div>
         ) : (
-          <>
-            {alertSent && (
-              <div className="rounded-lg bg-success-bg px-3 py-2 text-[11px] font-semibold text-success">
-                تم إرسال تنبيه إلى {alertSent}
+          <div className="flex flex-col gap-2.5 overflow-y-auto">
+            <div className="flex items-center gap-2.5">
+              <Avatar initials="أ" size={30} />
+              <div className="min-w-0 flex-1">
+                <span className="block truncate text-xs font-semibold text-ink">أنت</span>
               </div>
-            )}
-            <div className="flex flex-col gap-2.5 overflow-y-auto">
-              {participants.map((p) => (
-                <div key={p.name} className="flex items-center gap-2.5">
-                  <Avatar initials={p.name[0]} size={30} />
-                  <div className="flex-1 min-w-0">
-                    <span className="block truncate text-xs font-semibold text-ink">{p.name}</span>
-                    {p.cohost && <span className="text-[10px] text-indigo">مضيف مساعد</span>}
-                  </div>
-                  <Badge tone={muted || p.muted ? 'neutral' : p.tone}>{muted || p.muted ? 'مكتوم' : p.status}</Badge>
-                  <div className="relative">
-                    <button
-                      onClick={() => setMenuFor(menuFor === p.name ? null : p.name)}
-                      className="rounded px-1.5 py-1 text-ink-faint hover:bg-surface"
-                    >
-                      ⋮
-                    </button>
-                    {menuFor === p.name && (
-                      <>
-                        <div className="fixed inset-0 z-40" onClick={() => setMenuFor(null)} />
-                        <div className="absolute left-0 top-full z-50 mt-1 w-40 overflow-hidden rounded-lg bg-white py-1 shadow-panel">
-                          <button onClick={() => alertStudent(p.name)} className="block w-full px-3.5 py-2 text-right text-[11px] font-semibold text-ink hover:bg-surface-alt">تنبيه للطالب</button>
-                          <button onClick={() => toggleMuteOne(p.name)} className="block w-full px-3.5 py-2 text-right text-[11px] font-semibold text-ink hover:bg-surface-alt">{p.muted ? 'إلغاء الكتم' : 'كتم المايك'}</button>
-                          <button onClick={() => toggleCohost(p.name)} className="block w-full px-3.5 py-2 text-right text-[11px] font-semibold text-indigo hover:bg-surface-alt">{p.cohost ? 'إزالة صلاحية مضيف' : 'مشاركة صلاحيات مضيف'}</button>
-                          <button onClick={() => kick(p.name)} className="block w-full px-3.5 py-2 text-right text-[11px] font-semibold text-danger-light hover:bg-danger-bg-soft">طرد من اللقاء</button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              ))}
+              <Badge tone={selfMicOn ? 'success' : 'neutral'}>{selfMicOn ? 'الصوت مفعّل' : 'مكتوم'}</Badge>
             </div>
-          </>
+            {remoteUsers.map((user) => (
+              <div key={user.uid} className="flex items-center gap-2.5">
+                <Avatar initials="؟" size={30} />
+                <div className="min-w-0 flex-1">
+                  <span className="block truncate text-xs font-semibold text-ink">مشارك #{user.uid}</span>
+                </div>
+                <Badge tone={user.hasAudio ? 'success' : 'neutral'}>{user.hasAudio ? 'الصوت مفعّل' : 'بدون صوت'}</Badge>
+              </div>
+            ))}
+            {remoteUsers.length === 0 && (
+              <div className="text-xs text-ink-faint">لا يوجد مشاركون آخرون متصلون بعد</div>
+            )}
+          </div>
         )}
       </Card>
 
@@ -333,7 +514,7 @@ export default function LiveSession() {
             <div className="flex flex-col gap-4 text-center">
               <span className="font-sans text-lg font-extrabold text-navy">إرسال «{activeBlock.title}» للطلاب الآن؟</span>
               <p className="text-xs text-ink-faint">
-                سيفتح هذا النشاط فورًا في تطبيق كل طالب متصل حاليًا باللقاء ({state.count ?? participants.length} طالب).
+                سيفتح هذا النشاط فورًا في تطبيق كل طالب متصل حاليًا باللقاء ({liveCount || sessionCount || 0} طالب).
               </p>
               <div className="flex justify-center gap-2.5">
                 <Button variant="secondary" size="sm" onClick={closePush}>إلغاء</Button>
