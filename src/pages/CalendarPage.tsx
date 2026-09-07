@@ -100,7 +100,7 @@ export default function CalendarPage() {
     <div className="flex flex-col gap-4">
       <PageHeader
         title="التقويم وجدولة اللقاءات"
-        subtitle="جدولة كل اللقاءات مع تكامل Zoom"
+        subtitle="جدولة كل اللقاءات مع تكامل Agora"
         actions={
           <>
             {views.map((v) => (

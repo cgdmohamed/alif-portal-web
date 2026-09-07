@@ -105,7 +105,7 @@ export default function Classes() {
                 <div><div className="mb-1 text-ink-faint">المدرب</div>{activeClass.teacher?.name ?? '— بدون تعيين —'}</div>
                 <div><div className="mb-1 text-ink-faint">عدد الطلاب</div>{activeClass.studentsCount}</div>
                 <div><div className="mb-1 text-ink-faint">الحالة</div><Badge tone={statusLabel[activeClass.status].tone}>{statusLabel[activeClass.status].label}</Badge></div>
-                <div><div className="mb-1 text-ink-faint">Zoom تلقائي</div>{activeClass.autoZoom ? 'مفعّل' : 'غير مفعّل'}</div>
+                <div><div className="mb-1 text-ink-faint">Agora تلقائي</div>{activeClass.autoAgora ? 'مفعّل' : 'غير مفعّل'}</div>
               </div>
             )}
             {tab === 'اللقاءات' && (

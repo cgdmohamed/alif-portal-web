@@ -30,7 +30,7 @@ export interface GeneratedClass {
   meetings: ClassMeeting[]
   performance: number
   status: ClassStatus
-  autoZoom: boolean
+  autoAgora: boolean
 }
 
 interface SchoolClassesContextValue {
@@ -56,7 +56,7 @@ function toGeneratedClass(c: ApiClass): GeneratedClass {
     meetings: c.meetings ?? [],
     performance: c.performance,
     status: statusToArabic[c.status],
-    autoZoom: c.autoZoom,
+    autoAgora: c.autoAgora,
   }
 }
 
@@ -90,7 +90,7 @@ export function SchoolClassesProvider({ children }: { children: ReactNode }) {
       resourceId: input.resourceId ?? undefined,
       teacherId: input.teacherId ?? undefined,
       color: input.color,
-      autoZoom: input.autoZoom,
+      autoAgora: input.autoAgora,
     })
     // initialMeetings are scheduled as separate meeting requests once the class exists.
     for (const m of initialMeetings ?? []) {

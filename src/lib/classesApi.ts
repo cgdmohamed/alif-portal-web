@@ -23,7 +23,7 @@ export interface ApiClass {
   color: string
   performance: number
   status: ClassStatus
-  autoZoom: boolean
+  autoAgora: boolean
   meetings: ClassMeeting[]
 }
 
@@ -40,7 +40,7 @@ export const classesApi = {
   get: (id: string) => api.get<ApiClass>(`/classes/${id}`),
   create: (
     schoolId: string,
-    input: { name: string; resourceId?: string; teacherId?: string; color: string; autoZoom: boolean },
+    input: { name: string; resourceId?: string; teacherId?: string; color: string; autoAgora: boolean },
   ) => api.post<ApiClass>(`/schools/${schoolId}/classes`, input),
   addMeeting: (classId: string, meeting: { title: string; date: string; time: string }) =>
     api.post<ClassMeeting>(`/classes/${classId}/meetings`, meeting),

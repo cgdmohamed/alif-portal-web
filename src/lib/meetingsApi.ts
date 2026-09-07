@@ -10,7 +10,14 @@ export interface ApiMeeting {
   scheduledAt: string
   durationMinutes: number
   status: MeetingStatus
-  zoomSessionName: string | null
+  agoraChannelName: string | null
+}
+
+export interface AgoraJoinCredentials {
+  channelName: string
+  token: string
+  appId: string
+  uid: number
 }
 
 export interface MeetingSessionBlock {
@@ -35,5 +42,5 @@ export const meetingsApi = {
   pushActivity: (id: string, blockId: string) => api.post<ApiMeeting>(`/meetings/${id}/push-activity`, { blockId }),
   complete: (id: string, input: { checklist: Record<string, boolean>; rating: number; note?: string }) =>
     api.post<ApiMeeting>(`/meetings/${id}/complete`, input),
-  join: (id: string) => api.post<{ sessionName: string; token: string; sdkKey: string }>(`/meetings/${id}/join`),
+  join: (id: string) => api.post<AgoraJoinCredentials>(`/meetings/${id}/join`),
 }

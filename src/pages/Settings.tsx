@@ -9,7 +9,7 @@ import { settingsApi, type PlatformSettings, type ApiPdfTemplate } from '../lib/
 import { recordingsApi, formatBytes, type StorageUsage } from '../lib/recordingsApi'
 import { ApiError } from '../lib/api'
 
-type ConnState = 'idle' | 'testing' | 'success'
+type ConnState = 'idle' | 'testing' | 'success' | 'not-configured'
 
 export default function Settings() {
   const [settings, setSettings] = useState<PlatformSettings | null>(null)
@@ -19,7 +19,7 @@ export default function Settings() {
 
   const [platformName, setPlatformName] = useState('')
   const [officialEmail, setOfficialEmail] = useState('')
-  const [zoomAccountId, setZoomAccountId] = useState('')
+  const [agoraAppId, setAgoraAppId] = useState('')
   const [smtpHost, setSmtpHost] = useState('')
   const [smtpPort, setSmtpPort] = useState('')
   const [smsGateway, setSmsGateway] = useState('')
@@ -29,7 +29,7 @@ export default function Settings() {
   const [twoFA, setTwoFA] = useState(true)
   const [autoCleanup, setAutoCleanup] = useState(false)
 
-  const [zoomState, setZoomState] = useState<ConnState>('idle')
+  const [agoraState, setAgoraState] = useState<ConnState>('idle')
   const [mailState, setMailState] = useState<ConnState>('idle')
   const [smsState, setSmsState] = useState<ConnState>('idle')
   const [saved, setSaved] = useState(false)
@@ -41,7 +41,7 @@ export default function Settings() {
         setSettings(s)
         setPlatformName(s.platformName)
         setOfficialEmail(s.officialEmail ?? '')
-        setZoomAccountId(s.zoom.accountId ?? '')
+        setAgoraAppId(s.agora.appId ?? '')
         setSmtpHost(s.smtp.host ?? '')
         setSmtpPort(s.smtp.port ? String(s.smtp.port) : '')
         setSmsGateway(s.sms.gateway ?? '')
@@ -56,17 +56,17 @@ export default function Settings() {
     recordingsApi.storageUsage().then(setUsage).catch(() => setUsage(null))
   }, [])
 
-  async function testConnection(target: 'zoom' | 'smtp' | 'sms', setter: (s: ConnState) => void) {
+  async function testConnection(target: 'agora' | 'smtp' | 'sms', setter: (s: ConnState) => void) {
     setter('testing')
-    await settingsApi.testConnection(target)
-    setter('success')
+    const result = await settingsApi.testConnection(target)
+    setter(result.success ? 'success' : 'not-configured')
   }
 
   async function saveAll() {
     await settingsApi.update({
       platformName,
       officialEmail: officialEmail || undefined,
-      zoom: { accountId: zoomAccountId || null },
+      agora: { appId: agoraAppId || null },
       smtp: { host: smtpHost || null, port: smtpPort ? Number(smtpPort) : null, encryption: null },
       sms: { gateway: smsGateway || null, senderName: smsSenderName || null },
       security: { minPasswordLength, sessionMinutes, twoFactorEnabled: twoFA },
@@ -99,15 +99,19 @@ export default function Settings() {
         </Card>
 
         <Card className="flex flex-col gap-3.5">
-          <span className="text-sm font-extrabold text-ink">Zoom</span>
-          <Field label="Account ID">
-            <input value={zoomAccountId} onChange={(e) => setZoomAccountId(e.target.value)} className="rounded-xl border border-line bg-surface px-4 py-3 text-sm focus:outline-none" />
+          <span className="text-sm font-extrabold text-ink">Agora</span>
+          <Field label="App ID (مرجعي فقط)">
+            <input value={agoraAppId} onChange={(e) => setAgoraAppId(e.target.value)} className="rounded-xl border border-line bg-surface px-4 py-3 text-sm focus:outline-none" />
           </Field>
+          <p className="text-[11px] text-ink-faint">
+            بيانات الاتصال الفعلية (App ID/Certificate) تُضبط من متغيرات البيئة على الخادم — هذا الحقل للتوثيق فقط.
+          </p>
           <div className="flex items-center gap-3">
-            <Button variant="secondary" size="sm" className="w-fit" disabled={zoomState === 'testing'} onClick={() => testConnection('zoom', setZoomState)}>
-              {zoomState === 'testing' ? 'جارٍ الاختبار…' : 'اختبار الاتصال'}
+            <Button variant="secondary" size="sm" className="w-fit" disabled={agoraState === 'testing'} onClick={() => testConnection('agora', setAgoraState)}>
+              {agoraState === 'testing' ? 'جارٍ الاختبار…' : 'اختبار الاتصال'}
             </Button>
-            {zoomState === 'success' && <Badge tone="success">متصل بنجاح ✓</Badge>}
+            {agoraState === 'success' && <Badge tone="success">مُهيأ على الخادم ✓</Badge>}
+            {agoraState === 'not-configured' && <Badge tone="warning">غير مُهيأ على الخادم</Badge>}
           </div>
         </Card>
 

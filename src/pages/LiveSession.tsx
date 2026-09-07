@@ -39,7 +39,7 @@ function formatDuration(minutes: number) {
 /**
  * NOTE: participants/mute/kick/poll/whiteboard below are local UI-only —
  * there is no backend for live participant rosters or in-call collaboration
- * tools (the Zoom integration is stubbed, not a real video SDK). Session
+ * tools (the Agora integration is stubbed, not a real video SDK). Session
  * plan / push-activity / completion ARE wired to the real API.
  */
 export default function LiveSession() {

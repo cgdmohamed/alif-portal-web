@@ -43,7 +43,7 @@ export default function GenerateClassModal({
   const [studentsCount, setStudentsCount] = useState(25)
   const [firstDate, setFirstDate] = useState(todayIso())
   const [defaultTime, setDefaultTime] = useState('16:00')
-  const [autoZoom, setAutoZoom] = useState(true)
+  const [autoAgora, setAutoAgora] = useState(true)
   const [sessions, setSessions] = useState<SessionRow[]>([])
   const [done, setDone] = useState(false)
 
@@ -54,7 +54,7 @@ export default function GenerateClassModal({
     setStudentsCount(25)
     setFirstDate(todayIso())
     setDefaultTime('16:00')
-    setAutoZoom(true)
+    setAutoAgora(true)
     setSessions([])
     onClose()
   }
@@ -88,7 +88,7 @@ export default function GenerateClassModal({
         studentsCount,
         color: resource.color,
         performance: 0,
-        autoZoom,
+        autoAgora,
       },
       sessions,
     )
@@ -104,7 +104,7 @@ export default function GenerateClassModal({
             <span className="font-sans text-lg font-extrabold text-navy">تم توليد الفصل بنجاح</span>
             <p className="text-xs text-ink-faint">
               تم إنشاء الفصل من برنامج «{resource.name}» وجدولة {sessions.length} لقاءً
-              {autoZoom ? ' مع إنشاء اجتماع Zoom تلقائي لكل لقاء' : ''}.
+              {autoAgora ? ' مع إنشاء اجتماع Agora تلقائي لكل لقاء' : ''}.
             </p>
             <div className="mt-2 flex gap-2.5">
               <Button variant="secondary" size="sm" onClick={close}>إغلاق</Button>
@@ -161,8 +161,8 @@ export default function GenerateClassModal({
             </div>
 
             <div className="flex items-center justify-between rounded-xl border border-line-accent bg-surface-alt px-4 py-3">
-              <span className="text-xs text-navy-darker">إنشاء اجتماع Zoom تلقائيًا لكل لقاء</span>
-              <Switch checked={autoZoom} onChange={setAutoZoom} />
+              <span className="text-xs text-navy-darker">إنشاء اجتماع Agora تلقائيًا لكل لقاء</span>
+              <Switch checked={autoAgora} onChange={setAutoAgora} />
             </div>
 
             <div className="flex justify-end gap-2.5">

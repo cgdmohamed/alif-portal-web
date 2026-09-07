@@ -250,7 +250,7 @@ export default function Dashboard() {
                           })
                         }
                         className="flex h-[34px] w-[34px] flex-none items-center justify-center rounded-lg bg-indigo transition-transform hover:scale-105"
-                        title="الانضمام إلى Zoom"
+                        title="الانضمام إلى Agora"
                       >
                         <PlayIcon />
                       </button>

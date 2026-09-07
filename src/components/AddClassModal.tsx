@@ -60,7 +60,7 @@ export default function AddClassModal({
         teacherId: teacherId || undefined,
         resourceId: resourceId || undefined,
         color: colors[Math.floor(Math.random() * colors.length)],
-        autoZoom: true,
+        autoAgora: true,
       })
       setSubmitted(true)
       onCreated()
