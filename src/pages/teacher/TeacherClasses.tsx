@@ -19,7 +19,7 @@ export default function TeacherClasses() {
       scheduledAt: new Date().toISOString(),
       durationMinutes: 60,
     })
-    navigate('/live-session', {
+    navigate('/teacher/live-session', {
       state: {
         meetingId: meeting.id,
         title: meeting.title,

@@ -105,7 +105,7 @@ export default function TeacherDashboard() {
                 </div>
                 <button
                   onClick={() =>
-                    navigate('/live-session', {
+                    navigate('/teacher/live-session', {
                       state: { meetingId: m.id, title: m.title, trainer: user?.name, className: m.classEntity.name, count: m.classEntity.studentsCount },
                     })
                   }

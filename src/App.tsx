@@ -85,6 +85,7 @@ export default function App() {
         <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
         <Route path="/teacher/classes" element={<TeacherClasses />} />
         <Route path="/teacher/settings" element={<TeacherSettings />} />
+        <Route path="/teacher/live-session" element={<LiveSession />} />
       </Route>
       </Route>
 
