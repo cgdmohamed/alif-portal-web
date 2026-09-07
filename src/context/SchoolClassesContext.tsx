@@ -7,6 +7,7 @@ export interface ClassMeeting {
   title: string
   date: string
   time: string
+  meetingId: string | null
 }
 
 export type ClassStatus = 'قيد الإعداد' | 'نشط' | 'مكتمل' | 'ملغى'

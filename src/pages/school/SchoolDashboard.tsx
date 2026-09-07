@@ -186,11 +186,13 @@ export default function SchoolDashboard() {
                   <button
                     onClick={() =>
                       navigate('/school/live-session', {
-                        // NOTE: m.id is a class_meetings (schedule) row, not a real
-                        // meetings (video) entity id — the two aren't linked yet, so
-                        // this can't join real video (see meetingsApi.join). Preview
-                        // only until that's wired up.
-                        state: { title: m.title, trainer: m.trainer, className: m.className, count: m.studentsCount },
+                        state: {
+                          meetingId: m.meetingId ?? undefined,
+                          title: m.title,
+                          trainer: m.trainer,
+                          className: m.className,
+                          count: m.studentsCount,
+                        },
                       })
                     }
                     className="flex h-[34px] w-[34px] flex-none items-center justify-center rounded-lg bg-indigo transition-transform hover:scale-105"

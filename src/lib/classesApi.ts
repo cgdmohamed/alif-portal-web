@@ -7,6 +7,10 @@ export interface ClassMeeting {
   title: string
   date: string
   time: string
+  // The real, joinable meeting (Agora channel etc.) this schedule row is
+  // linked to — pass this, not `id`, to anything that joins live video
+  // (e.g. meetingsApi.join). Null only for rows that predate the link.
+  meetingId: string | null
 }
 
 export interface ApiClass {
