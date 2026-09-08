@@ -1,4 +1,5 @@
 import { api } from './api'
+import type { ApiUser } from './usersApi'
 
 export type ConversationStatus = 'open' | 'closed'
 
@@ -20,6 +21,7 @@ export interface ApiSupportMessage {
 
 export const supportApi = {
   conversations: () => api.get<ApiConversation[]>('/support/conversations'),
+  agents: () => api.get<ApiUser[]>('/support/agents'),
   messages: (conversationId: string) => api.get<ApiSupportMessage[]>(`/support/conversations/${conversationId}/messages`),
   sendMessage: (conversationId: string, text: string) =>
     api.post<ApiSupportMessage>(`/support/conversations/${conversationId}/messages`, { text }),

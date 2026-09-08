@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import ProtectedRoute from './components/ProtectedRoute'
 import AppLayout from './components/layout/AppLayout'
@@ -14,7 +15,6 @@ import CatalogManagement from './pages/CatalogManagement'
 import QuestionBank from './pages/QuestionBank'
 import ContentLibrary from './pages/ContentLibrary'
 import CalendarPage from './pages/CalendarPage'
-import LiveSession from './pages/LiveSession'
 import Recordings from './pages/Recordings'
 import Assignments from './pages/Assignments'
 import Grading from './pages/Grading'
@@ -37,6 +37,12 @@ import TeacherDashboard from './pages/teacher/TeacherDashboard'
 import TeacherClasses from './pages/teacher/TeacherClasses'
 import TeacherSettings from './pages/teacher/TeacherSettings'
 
+const LiveSession = lazy(() => import('./pages/LiveSession'))
+
+function LazyLiveSession() {
+  return <Suspense fallback={<div className="p-8 text-center text-sm text-ink-faint">جارٍ تحميل غرفة اللقاء...</div>}><LiveSession /></Suspense>
+}
+
 export default function App() {
   return (
     <Routes>
@@ -53,7 +59,7 @@ export default function App() {
         <Route path="/question-bank" element={<QuestionBank />} />
         <Route path="/content-library" element={<ContentLibrary />} />
         <Route path="/calendar" element={<CalendarPage />} />
-        <Route path="/live-session" element={<LiveSession />} />
+        <Route path="/live-session" element={<LazyLiveSession />} />
         <Route path="/recordings" element={<Recordings />} />
         <Route path="/assignments" element={<Assignments />} />
         <Route path="/grading" element={<Grading />} />
@@ -76,7 +82,7 @@ export default function App() {
         <Route path="/school/enrollment-codes" element={<SchoolEnrollmentCodes />} />
         <Route path="/school/package" element={<SchoolPackage />} />
         <Route path="/school/settings" element={<SchoolSettings />} />
-        <Route path="/school/live-session" element={<LiveSession />} />
+        <Route path="/school/live-session" element={<LazyLiveSession />} />
       </Route>
       </Route>
 
@@ -85,7 +91,7 @@ export default function App() {
         <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
         <Route path="/teacher/classes" element={<TeacherClasses />} />
         <Route path="/teacher/settings" element={<TeacherSettings />} />
-        <Route path="/teacher/live-session" element={<LiveSession />} />
+        <Route path="/teacher/live-session" element={<LazyLiveSession />} />
         <Route path="/calendar" element={<CalendarPage />} />
         <Route path="/grading" element={<Grading />} />
       </Route>

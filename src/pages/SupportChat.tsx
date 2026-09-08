@@ -5,7 +5,7 @@ import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
 import Modal from '../components/ui/Modal'
 import { supportApi, type ApiConversation, type ApiSupportMessage } from '../lib/supportApi'
-import { usersApi, type ApiUser } from '../lib/usersApi'
+import type { ApiUser } from '../lib/usersApi'
 import { ApiError } from '../lib/api'
 
 const quickReplies = ['مرحبًا! كيف أقدر أساعدك؟', 'تم الحل ✅', 'سأقوم بتحويلك لموظف آخر']
@@ -31,7 +31,7 @@ export default function SupportChat() {
 
   useEffect(loadConversations, [])
   useEffect(() => {
-    usersApi.list({ role: 'support_agent' }).then(setAgents).catch(() => setAgents([]))
+    supportApi.agents().then(setAgents).catch(() => setAgents([]))
   }, [])
 
   useEffect(() => {
