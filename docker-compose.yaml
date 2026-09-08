@@ -7,7 +7,7 @@ services:
         # Baked into the JS bundle at build time (Vite env vars aren't
         # readable at container runtime) — set this in Coolify's
         # environment variables UI before the first deploy.
-        VITE_API_URL: ${VITE_API_URL:?Set VITE_API_URL to the Alef Future API's public URL}
+        VITE_API_URL: ${VITE_API_URL:-https://api.aliffuture.com}
     restart: unless-stopped
     # Explicit so Coolify's compose parser picks up port 80 (nginx) instead
     # of defaulting to 3000 — it doesn't read the Dockerfile's own EXPOSE.

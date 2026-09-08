@@ -5,7 +5,7 @@ WORKDIR /app
 # Vite bakes VITE_* env vars into the JS bundle at build time, not at
 # container start — this must be supplied as a build ARG (see
 # docker-compose.yml's `build.args`), not a runtime `environment:` entry.
-ARG VITE_API_URL
+ARG VITE_API_URL=https://api.aliffuture.com
 ENV VITE_API_URL=$VITE_API_URL
 
 COPY package.json package-lock.json ./

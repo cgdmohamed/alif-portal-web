@@ -1,4 +1,15 @@
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
+const DEFAULT_API_URL = 'https://api.aliffuture.com'
+
+function normalizeApiUrl(value?: string) {
+  const configuredUrl = value?.trim() || DEFAULT_API_URL
+  const absoluteUrl = /^https?:\/\//i.test(configuredUrl)
+    ? configuredUrl
+    : `https://${configuredUrl.replace(/^\/+/, '')}`
+
+  return absoluteUrl.replace(/\/+$/, '')
+}
+
+const API_URL = normalizeApiUrl(import.meta.env.VITE_API_URL)
 
 const ACCESS_TOKEN_KEY = 'alef_access_token'
 const REFRESH_TOKEN_KEY = 'alef_refresh_token'
