@@ -39,7 +39,7 @@ export default function StudentReport() {
             <div className="text-xs text-ink-faint">{summary.className ?? 'بدون فصل'}</div>
           </div>
         </div>
-        <Button size="sm">تنزيل PDF كامل</Button>
+        <Button size="sm" onClick={() => window.print()}>طباعة / حفظ PDF</Button>
       </Card>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
@@ -98,13 +98,6 @@ export default function StudentReport() {
         </Card>
       </div>
 
-      <Card className="flex flex-col gap-2.5">
-        <span className="text-sm font-bold text-ink">أرسل تحديثًا لولي الأمر</span>
-        <div className="flex gap-2.5">
-          <Button variant="secondary" size="sm">أرسل لولي الأمر</Button>
-          <Button size="sm">حجز جلسة مراجعة</Button>
-        </div>
-      </Card>
     </div>
   )
 }

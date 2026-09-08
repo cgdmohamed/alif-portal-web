@@ -51,7 +51,6 @@ const groups: NavGroup[] = [
     items: [
       { label: 'التقويم والجدولة', to: '/calendar', icon: MeetingsIcon },
       { label: 'مكتبة التسجيلات', to: '/recordings', icon: MeetingsIcon },
-      { label: 'قص مقاطع التسويق', to: '/marketing-clip', icon: MeetingsIcon },
     ],
   },
   {

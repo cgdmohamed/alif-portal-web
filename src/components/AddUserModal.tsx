@@ -9,7 +9,8 @@ import { ApiError } from '../lib/api'
 const assignableRoles: BackendRole[] = ['platform_admin', 'school_admin', 'teacher', 'support_agent']
 
 function generatePassword() {
-  return Math.random().toString(36).slice(2, 10) + 'A1'
+  const bytes = crypto.getRandomValues(new Uint8Array(12))
+  return Array.from(bytes, (byte) => 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789'[byte % 57]).join('') + 'A1!'
 }
 
 export default function AddUserModal({
@@ -117,14 +118,14 @@ export default function AddUserModal({
                   ))}
                 </select>
               </Field>
-              {role === 'school_admin' && (
+              {(role === 'school_admin' || role === 'teacher') && (
                 <Field label="المدرسة">
                   <select
                     value={schoolId}
                     onChange={(e) => setSchoolId(e.target.value)}
                     className="rounded-xl border border-line bg-surface px-4 py-3 text-[13px] text-ink-soft focus:outline-none"
                   >
-                    <option value="">بدون مدرسة محددة</option>
+                    <option value="">اختر المدرسة</option>
                     {schools.map((s) => (
                       <option key={s.id} value={s.id}>{s.name}</option>
                     ))}
@@ -134,7 +135,7 @@ export default function AddUserModal({
             </div>
 
             <div className="mt-1.5 flex justify-end">
-              <Button size="sm" className="px-9" disabled={submitting || !name || !email} onClick={submit}>
+              <Button size="sm" className="px-9" disabled={submitting || !name || !email || ((role === 'school_admin' || role === 'teacher') && !schoolId)} onClick={submit}>
                 {submitting ? 'جارٍ الإنشاء...' : 'إنشاء المستخدم'}
               </Button>
             </div>

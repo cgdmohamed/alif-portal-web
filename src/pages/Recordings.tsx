@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import PageHeader from '../components/ui/PageHeader'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
@@ -16,9 +15,9 @@ import {
   type StorageUsage,
 } from '../lib/recordingsApi'
 import { ApiError } from '../lib/api'
+import { apiAssetUrl } from '../lib/api'
 
 export default function Recordings() {
-  const navigate = useNavigate()
   const [recordings, setRecordings] = useState<ApiRecording[] | null>(null)
   const [usage, setUsage] = useState<StorageUsage | null>(null)
   const [search, setSearch] = useState('')
@@ -131,13 +130,6 @@ export default function Recordings() {
                     ▶
                   </button>
                   <button
-                    onClick={() => navigate('/marketing-clip')}
-                    className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white hover:bg-white/25"
-                    title="قص مقطع"
-                  >
-                    ✂
-                  </button>
-                  <button
                     onClick={() => openSettings(r)}
                     className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white hover:bg-white/25"
                     title="إعدادات"
@@ -172,11 +164,14 @@ export default function Recordings() {
               <span className="font-sans text-lg font-extrabold text-navy">{playing.title}</span>
               <button onClick={() => setPlaying(null)} className="text-xl text-ink-faint">✕</button>
             </div>
-            <div className="flex h-64 items-center justify-center rounded-xl bg-navy-darker">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-indigo">
-                <PlayIcon />
-              </div>
-            </div>
+            <video
+              src={apiAssetUrl(playing.playbackUrl)}
+              controls
+              autoPlay
+              className="h-64 w-full rounded-xl bg-navy-darker object-contain"
+            >
+              المتصفح لا يدعم تشغيل الفيديو.
+            </video>
           </div>
         )}
       </Modal>

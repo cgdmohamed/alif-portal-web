@@ -13,6 +13,7 @@ import {
   type ContentItemType,
 } from '../lib/contentLibraryApi'
 import { ApiError } from '../lib/api'
+import { apiAssetUrl } from '../lib/api'
 
 const tabs = ['الكل', 'الفيديوهات', 'الملفات (PDF)', 'الصور', 'الأنشطة التفاعلية']
 const tabToType: Record<string, ContentItemType> = {
@@ -187,12 +188,20 @@ export default function ContentLibrary() {
               <span className="font-sans text-lg font-extrabold text-navy">{preview.title}</span>
               <button onClick={() => setPreview(null)} className="text-xl text-ink-faint">✕</button>
             </div>
-            <div
-              className="flex h-56 items-center justify-center rounded-xl"
-              style={{ background: `${preview.color}1A` }}
-            >
-              <span className="h-14 w-14 rounded-full" style={{ background: preview.color }} />
-            </div>
+            {preview.type === 'image' && (
+              <img src={apiAssetUrl(preview.storageUrl)} alt={preview.title} className="max-h-96 w-full rounded-xl object-contain" />
+            )}
+            {preview.type === 'video' && (
+              <video src={apiAssetUrl(preview.storageUrl)} controls className="max-h-96 w-full rounded-xl bg-navy-darker" />
+            )}
+            {preview.type === 'pdf' && (
+              <iframe src={apiAssetUrl(preview.storageUrl)} title={preview.title} className="h-96 w-full rounded-xl border border-line" />
+            )}
+            {preview.type === 'activity' && (
+              <a href={apiAssetUrl(preview.storageUrl)} target="_blank" rel="noreferrer" className="rounded-xl bg-surface-alt p-6 text-center text-sm font-bold text-indigo">
+                فتح ملف النشاط
+              </a>
+            )}
             <div className="flex justify-between text-xs text-ink-faint">
               <span>{typeLabel[preview.type]} · {formatBytes(preview.sizeBytes)}</span>
               <span>{new Date(preview.createdAt).toLocaleDateString('ar-SA')}</span>

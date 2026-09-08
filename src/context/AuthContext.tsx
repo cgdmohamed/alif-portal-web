@@ -29,6 +29,8 @@ interface AuthContextValue {
   user: AuthUser | null
   loading: boolean
   login: (email: string, password: string) => Promise<AuthUser>
+  requestOtp: (email: string) => Promise<void>
+  loginWithOtp: (email: string, code: string) => Promise<AuthUser>
   logout: () => void
 }
 
@@ -62,13 +64,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  async function requestOtp(email: string) {
+    await api.post('/auth/otp/request', { email })
+  }
+
+  async function loginWithOtp(email: string, code: string) {
+    const data = await api.post<LoginResponse>('/auth/otp/verify', { email, code })
+    setTokens(data.accessToken, data.refreshToken)
+    setUser(data.user)
+    return data.user
+  }
+
   function logout() {
     clearTokens()
     setUser(null)
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ user, loading, login, requestOtp, loginWithOtp, logout }}>{children}</AuthContext.Provider>
   )
 }
 

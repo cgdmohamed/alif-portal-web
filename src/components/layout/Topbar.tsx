@@ -1,24 +1,31 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { SearchIcon, BellIcon } from '../ui/icons'
 import Avatar from '../ui/Avatar'
 import { useAuth } from '../../context/AuthContext'
+import { notificationsApi, type ApiNotification } from '../../lib/notificationsApi'
 
-const searchIndex = [
-  { label: 'لمى الحربي', type: 'طالب', to: '/reports/student/1' },
-  { label: 'عبدالله السبيعي', type: 'طالب', to: '/reports/student/2' },
-  { label: 'فصل الموهوبين — الرياضيات 3أ', type: 'فصل', to: '/classes' },
-  { label: 'نادي الإبداع والابتكار', type: 'فصل', to: '/classes' },
-  { label: 'تقرير الأداء الشهري', type: 'تقرير', to: '/reports' },
-  { label: 'مدارس الرواد الأهلية', type: 'مدرسة', to: '/schools' },
-]
+const navigationByRole = {
+  platform_admin: [
+    ['لوحة التحكم', 'صفحة', '/'], ['المستخدمون', 'صفحة', '/users'], ['المدارس', 'صفحة', '/schools'],
+    ['الفصول', 'صفحة', '/classes'], ['التقارير', 'صفحة', '/reports'], ['التسجيلات', 'صفحة', '/recordings'],
+  ],
+  school_admin: [
+    ['لوحة المدرسة', 'صفحة', '/school/dashboard'], ['الفصول', 'صفحة', '/school/classes'],
+    ['المعلمون', 'صفحة', '/school/teachers'], ['الطلاب', 'صفحة', '/school/students'],
+  ],
+  teacher: [
+    ['لوحة المدرب', 'صفحة', '/teacher/dashboard'], ['فصولي', 'صفحة', '/teacher/classes'],
+    ['التقويم', 'صفحة', '/calendar'], ['التصحيح', 'صفحة', '/grading'],
+  ],
+  support_agent: [['المحادثات', 'صفحة', '/support']],
+  student: [],
+  parent: [],
+} as const
 
-const notifications = [
-  { title: 'مدرسة الرواد الأهلية انضمت للمنصة', time: 'قبل 20 دقيقة', unread: true },
-  { title: 'أ. خالد رفع 12 سؤال جديد لبنك الأسئلة', time: 'قبل ساعة', unread: true },
-  { title: 'تم إصدار 34 تقرير أداء شهري تلقائيًا', time: 'قبل 3 ساعات', unread: false },
-  { title: 'اشتراك ابتدائية الأمل يحتاج تجديدًا', time: 'أمس', unread: false },
-]
+function notificationTime(value: string) {
+  return new Date(value).toLocaleString('ar-SA', { dateStyle: 'short', timeStyle: 'short' })
+}
 
 export default function Topbar({
   name = 'د. فاطمة المقبل',
@@ -32,11 +39,21 @@ export default function Topbar({
   settingsPath?: string
 }) {
   const navigate = useNavigate()
-  const { logout } = useAuth()
+  const { logout, user } = useAuth()
   const [query, setQuery] = useState('')
   const [notifOpen, setNotifOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
-  const [unread, setUnread] = useState(notifications.filter((n) => n.unread).length)
+  const [notifications, setNotifications] = useState<ApiNotification[]>([])
+
+  useEffect(() => {
+    notificationsApi.list().then(setNotifications).catch(() => setNotifications([]))
+  }, [])
+
+  const searchIndex = useMemo(
+    () => (user ? navigationByRole[user.role].map(([label, type, to]) => ({ label, type, to })) : []),
+    [user],
+  )
+  const unread = notifications.filter((notification) => !notification.read).length
 
   const results = query.trim()
     ? searchIndex.filter((r) => r.label.includes(query) || r.type.includes(query))
@@ -45,6 +62,17 @@ export default function Topbar({
   function closeAll() {
     setNotifOpen(false)
     setProfileOpen(false)
+  }
+
+  async function markAllRead() {
+    await notificationsApi.markAllRead()
+    setNotifications((rows) => rows.map((row) => ({ ...row, read: true })))
+  }
+
+  async function markRead(notification: ApiNotification) {
+    if (notification.read) return
+    await notificationsApi.markRead(notification.id)
+    setNotifications((rows) => rows.map((row) => row.id === notification.id ? { ...row, read: true } : row))
   }
 
   return (
@@ -59,7 +87,7 @@ export default function Topbar({
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="بحث شامل عن طالب، فصل، تقرير..."
+            placeholder="انتقل إلى صفحة..."
             className="w-full bg-transparent text-[13px] text-ink placeholder:text-ink-faint focus:outline-none"
           />
         </div>
@@ -108,23 +136,28 @@ export default function Topbar({
               <div className="flex items-center justify-between border-b border-line px-4 py-3">
                 <span className="text-xs font-extrabold text-ink">الإشعارات</span>
                 <button
-                  onClick={() => setUnread(0)}
+                  onClick={markAllRead}
                   className="text-[11px] font-semibold text-indigo"
                 >
                   تعليم الكل كمقروء
                 </button>
               </div>
               <div className="flex max-h-80 flex-col overflow-y-auto">
+                {notifications.length === 0 && (
+                  <div className="p-5 text-center text-xs text-ink-faint">لا توجد إشعارات</div>
+                )}
                 {notifications.map((n) => (
-                  <div
-                    key={n.title}
+                  <button
+                    key={n.id}
+                    onClick={() => markRead(n)}
                     className={`flex flex-col gap-1 border-b border-line-soft px-4 py-3 last:border-none ${
-                      n.unread ? 'bg-surface-alt' : ''
+                      !n.read ? 'bg-surface-alt' : ''
                     }`}
                   >
                     <span className="text-xs font-semibold text-ink">{n.title}</span>
-                    <span className="text-[10px] text-ink-faint">{n.time}</span>
-                  </div>
+                    <span className="text-right text-[10px] text-ink-faint">{n.subtitle}</span>
+                    <span className="text-[10px] text-ink-faint">{notificationTime(n.createdAt)}</span>
+                  </button>
                 ))}
               </div>
             </div>

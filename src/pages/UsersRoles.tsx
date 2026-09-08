@@ -273,7 +273,7 @@ export default function UsersRoles() {
         </>
       )}
 
-      <AddUserModal open={modalOpen} onClose={() => setModalOpen(false)} onCreated={() => { setModalOpen(false); load() }} schools={schools} />
+      <AddUserModal open={modalOpen} onClose={() => setModalOpen(false)} onCreated={load} schools={schools} />
       <UserDetailPanel user={panelUser} onClose={() => setPanelUser(null)} onChanged={load} schoolName={panelUser ? schoolName(panelUser.schoolId) : '—'} />
     </div>
   )

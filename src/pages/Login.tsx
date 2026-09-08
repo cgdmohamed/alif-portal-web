@@ -9,18 +9,20 @@ const roleRoutes = {
   platform_admin: '/',
   school_admin: '/school/dashboard',
   teacher: '/teacher/dashboard',
+  support_agent: '/support',
 } as const
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false)
-  const [forgotOpen, setForgotOpen] = useState(false)
-  const [resetSent, setResetSent] = useState(false)
+  const [otpOpen, setOtpOpen] = useState(false)
+  const [otpSent, setOtpSent] = useState(false)
+  const [otpCode, setOtpCode] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const navigate = useNavigate()
-  const { login } = useAuth()
+  const { login, requestOtp, loginWithOtp } = useAuth()
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -41,9 +43,38 @@ export default function Login() {
     }
   }
 
-  function closeForgot() {
-    setForgotOpen(false)
-    setResetSent(false)
+  function closeOtp() {
+    setOtpOpen(false)
+    setOtpSent(false)
+    setOtpCode('')
+    setError(null)
+  }
+
+  function goToUserHome(role: string) {
+    const destination = roleRoutes[role as keyof typeof roleRoutes]
+    if (!destination) throw new ApiError(403, 'هذا الحساب غير مخوّل بالدخول إلى لوحة التحكم هذه')
+    navigate(destination)
+  }
+
+  async function sendOtp() {
+    setError(null)
+    try {
+      await requestOtp(email)
+      setOtpSent(true)
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'تعذر إرسال رمز الدخول')
+    }
+  }
+
+  async function verifyOtp() {
+    setError(null)
+    try {
+      const user = await loginWithOtp(email, otpCode)
+      closeOtp()
+      goToUserHome(user.role)
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'تعذر التحقق من الرمز')
+    }
   }
 
   return (
@@ -60,18 +91,6 @@ export default function Login() {
           منصّة إدارة متكاملة للمدربين والمدارس لمتابعة أداء الطلاب الموهوبين وإدارة اللقاءات
           والتقارير من مكان واحد
         </p>
-        <div className="z-10 mt-2 flex gap-8">
-          {[
-            ['4,280', 'طالب'],
-            ['86', 'مدرسة'],
-            ['312', 'مدرب'],
-          ].map(([value, label]) => (
-            <div key={label} className="text-center">
-              <div className="font-sans text-2xl font-black text-white">{value}</div>
-              <div className="text-xs text-[#B9B8E8]">{label}</div>
-            </div>
-          ))}
-        </div>
       </div>
 
       <div className="flex w-full flex-col justify-center px-10 md:w-1/2 md:px-24">
@@ -122,10 +141,10 @@ export default function Login() {
             </label>
             <button
               type="button"
-              onClick={() => setForgotOpen(true)}
+              onClick={() => setOtpOpen(true)}
               className="text-xs font-medium text-indigo"
             >
-              نسيت كلمة السر؟
+              الدخول برمز البريد
             </button>
           </div>
 
@@ -137,51 +156,41 @@ export default function Login() {
             {submitting ? 'جارٍ الدخول...' : 'تسجيل الدخول'}
           </button>
 
-          <div className="mt-8 flex justify-center gap-4 text-xs text-ink-faint">
-            <a href="#">الشروط والأحكام</a>
-            <a href="#">سياسة الخصوصية</a>
-          </div>
         </form>
       </div>
 
-      <Modal open={forgotOpen} onClose={closeForgot} width={420}>
-        {resetSent ? (
-          <div className="flex flex-col items-center gap-3 py-4 text-center">
-            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-success-bg text-2xl text-success">
-              ✓
-            </span>
-            <span className="font-sans text-lg font-extrabold text-navy">تم إرسال الرابط</span>
-            <p className="text-xs text-ink-faint">
-              تحقق من بريدك الإلكتروني للحصول على رابط إعادة تعيين كلمة السر
-            </p>
-            <Button size="sm" className="mt-2" onClick={closeForgot}>
-              تم
-            </Button>
-          </div>
-        ) : (
+      <Modal open={otpOpen} onClose={closeOtp} width={420}>
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
-              <span className="font-sans text-lg font-extrabold text-navy">إعادة تعيين كلمة السر</span>
-              <button onClick={closeForgot} className="text-xl text-ink-faint">
+              <span className="font-sans text-lg font-extrabold text-navy">الدخول برمز البريد</span>
+              <button onClick={closeOtp} className="text-xl text-ink-faint">
                 ✕
               </button>
             </div>
             <p className="text-xs text-ink-muted">
-              أدخل بريدك الإلكتروني وسنرسل لك رابطًا لإعادة تعيين كلمة السر
+              {otpSent ? 'أدخل رمز التحقق المرسل إلى بريدك' : 'أدخل بريد حسابك وسنرسل رمز دخول صالحًا لخمس دقائق'}
             </p>
             <label className="flex flex-col gap-1.5">
               <span className="text-xs font-medium text-ink">البريد الإلكتروني</span>
               <input
                 type="email"
-                defaultValue="m.alqahtani@alef.edu.sa"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                disabled={otpSent}
                 className="rounded-xl border border-line bg-surface px-4 py-3 text-sm text-ink focus:border-indigo focus:bg-white focus:outline-none"
               />
             </label>
-            <Button size="sm" onClick={() => setResetSent(true)}>
-              إرسال رابط إعادة التعيين
+            {otpSent && (
+              <label className="flex flex-col gap-1.5">
+                <span className="text-xs font-medium text-ink">رمز التحقق</span>
+                <input value={otpCode} onChange={(event) => setOtpCode(event.target.value)} inputMode="numeric" maxLength={8} className="rounded-xl border border-line bg-surface px-4 py-3 text-center font-mono text-lg tracking-widest focus:border-indigo focus:outline-none" />
+              </label>
+            )}
+            {error && <div className="rounded-lg bg-danger-bg-soft p-3 text-xs text-danger-light">{error}</div>}
+            <Button size="sm" disabled={!email || (otpSent && otpCode.length < 4)} onClick={otpSent ? verifyOtp : sendOtp}>
+              {otpSent ? 'تحقق وسجل الدخول' : 'إرسال الرمز'}
             </Button>
           </div>
-        )}
       </Modal>
     </div>
   )

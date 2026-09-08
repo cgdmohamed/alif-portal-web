@@ -3,6 +3,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import AppLayout from './components/layout/AppLayout'
 import SchoolLayout from './components/layout/SchoolLayout'
 import TeacherLayout from './components/layout/TeacherLayout'
+import SupportLayout from './components/layout/SupportLayout'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import UsersRoles from './pages/UsersRoles'
@@ -15,7 +16,6 @@ import ContentLibrary from './pages/ContentLibrary'
 import CalendarPage from './pages/CalendarPage'
 import LiveSession from './pages/LiveSession'
 import Recordings from './pages/Recordings'
-import MarketingClip from './pages/MarketingClip'
 import Assignments from './pages/Assignments'
 import Grading from './pages/Grading'
 import Reports from './pages/Reports'
@@ -55,7 +55,6 @@ export default function App() {
         <Route path="/calendar" element={<CalendarPage />} />
         <Route path="/live-session" element={<LiveSession />} />
         <Route path="/recordings" element={<Recordings />} />
-        <Route path="/marketing-clip" element={<MarketingClip />} />
         <Route path="/assignments" element={<Assignments />} />
         <Route path="/grading" element={<Grading />} />
         <Route path="/reports" element={<Reports />} />
@@ -87,7 +86,15 @@ export default function App() {
         <Route path="/teacher/classes" element={<TeacherClasses />} />
         <Route path="/teacher/settings" element={<TeacherSettings />} />
         <Route path="/teacher/live-session" element={<LiveSession />} />
+        <Route path="/calendar" element={<CalendarPage />} />
+        <Route path="/grading" element={<Grading />} />
       </Route>
+      </Route>
+
+      <Route element={<ProtectedRoute allow={['support_agent']} />}>
+        <Route element={<SupportLayout />}>
+          <Route path="/support" element={<SupportChat />} />
+        </Route>
       </Route>
 
       <Route path="*" element={<NotFound />} />

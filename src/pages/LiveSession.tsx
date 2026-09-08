@@ -15,6 +15,7 @@ import Modal from '../components/ui/Modal'
 import { Field } from '../components/ui/Input'
 import ActivityPreviewModal from '../components/ActivityPreviewModal'
 import { meetingsApi, type ApiMeeting, type MeetingSessionBlock } from '../lib/meetingsApi'
+import AttendanceModal from '../components/AttendanceModal'
 
 interface LiveSessionState {
   meetingId?: string
@@ -45,9 +46,7 @@ function formatDuration(minutes: number) {
 type VideoState = 'idle' | 'connecting' | 'connected' | 'error'
 
 /**
- * NOTE: poll/whiteboard below are still local UI-only — there is no backend
- * for in-call collaboration tools. Video (camera/mic/screen share, local +
- * remote tiles) is real Agora RTC now (see agoraClient wiring below).
+ * Video (camera/mic/screen share, local + remote tiles) is real Agora RTC.
  * Per-participant moderation (force-mute someone else, kick, co-host) isn't
  * implemented because it needs a signaling channel or server-side
  * moderation API that doesn't exist yet — rather than fake it, the
@@ -77,10 +76,11 @@ export default function LiveSession() {
   const [sessionPlan, setSessionPlan] = useState<MeetingSessionBlock[]>([])
   const [planError, setPlanError] = useState<string | null>(null)
 
-  const [pollOpen, setPollOpen] = useState(false)
-  const [pollLaunched, setPollLaunched] = useState(false)
-  const [whiteboard, setWhiteboard] = useState(false)
   const [ended, setEnded] = useState(false)
+  const [attendanceOpen, setAttendanceOpen] = useState(false)
+  const [endOpen, setEndOpen] = useState(false)
+  const [endRating, setEndRating] = useState<number | null>(null)
+  const [endNote, setEndNote] = useState('')
 
   const [leftTab, setLeftTab] = useState<'plan' | 'participants'>('plan')
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null)
@@ -232,10 +232,14 @@ export default function LiveSession() {
   }
 
   async function endMeeting() {
+    if (meetingId && endRating !== null) {
+      await meetingsApi.complete(meetingId, { checklist: {}, rating: endRating, note: endNote || undefined })
+    }
     localTracksRef.current?.mic.close()
     localTracksRef.current?.cam.close()
     screenTrackRef.current?.close()
     await clientRef.current?.leave().catch(() => {})
+    setEndOpen(false)
     setEnded(true)
   }
 
@@ -318,19 +322,12 @@ export default function LiveSession() {
         )}
 
         <div
-          className={`relative flex flex-1 items-center justify-center overflow-hidden rounded-xl2 text-white transition-colors ${
-            whiteboard ? 'bg-white text-navy' : 'bg-navy-darker'
-          }`}
+          className="relative flex flex-1 items-center justify-center overflow-hidden rounded-xl2 bg-navy-darker text-white"
         >
           {ended ? (
             <div className="text-center">
               <div className="mb-2 font-sans text-lg font-extrabold">تم إنهاء اللقاء</div>
-              <div className="text-xs text-white/60">تم حفظ الحضور والتسجيل بنجاح</div>
-            </div>
-          ) : whiteboard ? (
-            <div className="flex h-full w-full flex-col items-center justify-center gap-3 border-4 border-dashed border-line">
-              <span className="text-3xl">🖊</span>
-              <div className="text-sm font-bold text-ink-soft">السبورة الذكية — جاهزة للرسم والمشاركة</div>
+              <div className="text-xs text-white/60">تم حفظ تقييم اللقاء وإنهاؤه</div>
             </div>
           ) : !meetingId ? (
             // Preview/no-video context (e.g. opened without a real meeting id).
@@ -405,14 +402,7 @@ export default function LiveSession() {
             >
               📷 {selfCamOn ? 'إيقاف الكاميرا' : 'تشغيل الكاميرا'}
             </Button>
-            <Button variant="secondary" size="sm" onClick={() => setPollOpen(true)}>📊 استطلاع</Button>
-            <Button
-              variant={whiteboard ? 'primary' : 'secondary'}
-              size="sm"
-              onClick={() => setWhiteboard((w) => !w)}
-            >
-              🖊 السبورة الذكية
-            </Button>
+            <Button variant="secondary" size="sm" disabled={!meetingId} onClick={() => setAttendanceOpen(true)}>✓ الحضور</Button>
             <Button
               variant={screenSharing ? 'primary' : 'secondary'}
               size="sm"
@@ -422,7 +412,7 @@ export default function LiveSession() {
               🖥 {screenSharing ? 'إيقاف مشاركة الشاشة' : 'مشاركة الشاشة'}
             </Button>
           </div>
-          <Button variant="danger" size="sm" onClick={endMeeting}>إنهاء اللقاء</Button>
+          <Button variant="danger" size="sm" disabled={!meetingId} onClick={() => setEndOpen(true)}>إنهاء اللقاء</Button>
         </Card>
       </div>
 
@@ -501,6 +491,30 @@ export default function LiveSession() {
         framing="يُعرض هذا النشاط الآن على شاشة الاجتماع لجميع الطلاب"
       />
 
+      <AttendanceModal meetingId={meetingId} open={attendanceOpen} onClose={() => setAttendanceOpen(false)} />
+
+      <Modal open={endOpen} onClose={() => setEndOpen(false)} width={440}>
+        <div className="flex flex-col gap-4">
+          <span className="font-sans text-lg font-extrabold text-navy">إنهاء اللقاء</span>
+          <Field label="تقييم اللقاء">
+            <div className="flex gap-2">
+              {ratingOptions.map((option) => (
+                <button key={option.value} onClick={() => setEndRating(option.value)} className={`flex-1 rounded-lg border px-2 py-2 text-xs font-bold ${endRating === option.value ? 'border-indigo bg-indigo/10 text-indigo' : 'border-line text-ink-soft'}`}>
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </Field>
+          <Field label="ملاحظة (اختياري)">
+            <textarea rows={2} value={endNote} onChange={(event) => setEndNote(event.target.value)} className="rounded-xl border border-line bg-surface px-4 py-3 text-sm focus:border-indigo focus:outline-none" />
+          </Field>
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" size="sm" onClick={() => setEndOpen(false)}>إلغاء</Button>
+            <Button variant="danger" size="sm" disabled={endRating === null} onClick={endMeeting}>حفظ وإنهاء</Button>
+          </div>
+        </div>
+      </Modal>
+
       <Modal open={pushOpen} onClose={closePush} width={480}>
         {activeBlock?.type === 'activity' && (
           pushSent ? (
@@ -575,39 +589,6 @@ export default function LiveSession() {
         )}
       </Modal>
 
-      <Modal open={pollOpen} onClose={() => { setPollOpen(false); setPollLaunched(false) }} width={520}>
-        {pollLaunched ? (
-          <div className="flex flex-col items-center gap-3 py-6 text-center">
-            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-success-bg text-2xl text-success">✓</span>
-            <span className="font-sans text-lg font-extrabold text-navy">تم إطلاق الاستطلاع</span>
-            <p className="text-xs text-ink-faint">سيظهر الاستطلاع لجميع الطلاب المتصلين الآن</p>
-            <Button size="sm" className="mt-2" onClick={() => { setPollOpen(false); setPollLaunched(false) }}>تم</Button>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <span className="font-sans text-lg font-extrabold text-navy">استطلاع سريع</span>
-              <button onClick={() => setPollOpen(false)} className="text-xl text-ink-faint">✕</button>
-            </div>
-            <Field label="سؤال الاستطلاع">
-              <input
-                defaultValue="ما مدى وضوح الشرح حتى الآن؟"
-                className="rounded-xl border border-line bg-surface px-4 py-3 text-sm focus:border-indigo focus:bg-white focus:outline-none"
-              />
-            </Field>
-            <div className="flex flex-col gap-2">
-              {['واضح جدًا', 'واضح إلى حد ما', 'بحاجة لإعادة الشرح'].map((opt, i) => (
-                <input
-                  key={i}
-                  defaultValue={opt}
-                  className="rounded-xl border border-line bg-surface px-4 py-2.5 text-xs focus:border-indigo focus:bg-white focus:outline-none"
-                />
-              ))}
-            </div>
-            <Button size="sm" onClick={() => setPollLaunched(true)}>إطلاق الاستطلاع</Button>
-          </div>
-        )}
-      </Modal>
     </div>
   )
 }

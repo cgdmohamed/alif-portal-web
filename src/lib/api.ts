@@ -11,6 +11,11 @@ function normalizeApiUrl(value?: string) {
 
 const API_URL = normalizeApiUrl(import.meta.env.VITE_API_URL)
 
+export function apiAssetUrl(value: string) {
+  if (/^https?:\/\//i.test(value)) return value
+  return `${API_URL}/${value.replace(/^\/+/, '')}`
+}
+
 const ACCESS_TOKEN_KEY = 'alef_access_token'
 const REFRESH_TOKEN_KEY = 'alef_refresh_token'
 

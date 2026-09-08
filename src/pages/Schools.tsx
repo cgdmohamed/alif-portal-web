@@ -56,10 +56,14 @@ export default function Schools() {
     if (tab === 'الطلاب') schoolsApi.students(school.id).then(setStudents)
   }, [tab, school?.id])
 
-  function decide(approvalId: string) {
-    // No approve/reject endpoint exists on the backend yet — this only
-    // removes the item from the local list so the UI reflects the action.
-    setApprovals((list) => list?.filter((a) => a.id !== approvalId) ?? null)
+  async function decide(approvalId: string, status: 'approved' | 'rejected') {
+    if (!school) return
+    try {
+      const updated = await schoolsApi.reviewApproval(school.id, approvalId, status)
+      setApprovals((list) => list?.map((item) => item.id === approvalId ? updated : item) ?? null)
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'تعذر تحديث طلب الموافقة')
+    }
   }
 
   if (error) {
@@ -234,8 +238,16 @@ export default function Schools() {
                     <div className="text-[10px] text-ink-faint">{a.note}</div>
                   </div>
                   <div className="flex gap-2">
-                    <Button variant="danger" size="sm" onClick={() => decide(a.id)}>رفض</Button>
-                    <Button size="sm" onClick={() => decide(a.id)}>موافقة</Button>
+                    {a.status === 'pending' ? (
+                      <>
+                        <Button variant="danger" size="sm" onClick={() => decide(a.id, 'rejected')}>رفض</Button>
+                        <Button size="sm" onClick={() => decide(a.id, 'approved')}>موافقة</Button>
+                      </>
+                    ) : (
+                      <Badge tone={a.status === 'approved' ? 'success' : 'danger'}>
+                        {a.status === 'approved' ? 'تمت الموافقة' : 'مرفوض'}
+                      </Badge>
+                    )}
                   </div>
                 </div>
               ))}

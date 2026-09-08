@@ -28,6 +28,8 @@ export interface SchoolApproval {
   studentName: string
   note: string
   createdAt: string
+  status: 'pending' | 'approved' | 'rejected'
+  reviewedAt: string | null
 }
 
 export interface School {
@@ -85,6 +87,8 @@ export const schoolsApi = {
   update: (id: string, input: Partial<{ name: string; city: string; type: string; principal: string }>) =>
     api.patch<School>(`/schools/${id}`, input),
   approvals: (id: string) => api.get<SchoolApproval[]>(`/schools/${id}/approvals`),
+  reviewApproval: (schoolId: string, approvalId: string, status: 'approved' | 'rejected') =>
+    api.patch<SchoolApproval>(`/schools/${schoolId}/approvals/${approvalId}`, { status }),
   classes: (id: string) => api.get<ClassSummary[]>(`/schools/${id}/classes`),
   students: (id: string) => api.get<StudentRosterEntry[]>(`/schools/${id}/students`),
   invoices: (id: string) => api.get<SchoolInvoice[]>(`/schools/${id}/invoices`),

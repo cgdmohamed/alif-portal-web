@@ -9,6 +9,8 @@ import { Fragment } from 'react'
 import { meetingsApi, type ApiMeeting } from '../lib/meetingsApi'
 import { classesApi, type ApiClass } from '../lib/classesApi'
 import { ApiError } from '../lib/api'
+import { useAuth } from '../context/AuthContext'
+import { teachersApi } from '../lib/teachersApi'
 
 const days = ['سبت', 'أحد', 'اثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة']
 const hourSlots = [9, 11, 13, 15, 17, 19]
@@ -36,6 +38,7 @@ function nearestHourSlot(date: Date) {
 
 export default function CalendarPage() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [view, setView] = useState<(typeof views)[number]>('أسبوع')
   const [dayIndex, setDayIndex] = useState(dayIndexOf(new Date()))
   const [meetings, setMeetings] = useState<ApiMeeting[] | null>(null)
@@ -59,8 +62,13 @@ export default function CalendarPage() {
 
   useEffect(load, [])
   useEffect(() => {
-    classesApi.listAll().then(setClasses).catch(() => setClasses([]))
-  }, [])
+    const request = user?.role === 'teacher'
+      ? teachersApi.myClasses()
+      : user?.schoolId
+        ? classesApi.listForSchool(user.schoolId)
+        : classesApi.listAll()
+    request.then(setClasses).catch(() => setClasses([]))
+  }, [user?.role, user?.schoolId])
 
   const events = useMemo(
     () =>
@@ -271,7 +279,7 @@ export default function CalendarPage() {
               <Button
                 size="sm"
                 onClick={() =>
-                  navigate('/live-session', {
+                  navigate(user?.role === 'teacher' ? '/teacher/live-session' : user?.role === 'school_admin' ? '/school/live-session' : '/live-session', {
                     state: {
                       meetingId: selectedEvent.id,
                       title: selectedEvent.title,
