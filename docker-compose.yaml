@@ -9,6 +9,10 @@ services:
         # environment variables UI before the first deploy.
         VITE_API_URL: ${VITE_API_URL:?Set VITE_API_URL to the Alef Future API's public URL}
     restart: unless-stopped
+    # Explicit so Coolify's compose parser picks up port 80 (nginx) instead
+    # of defaulting to 3000 — it doesn't read the Dockerfile's own EXPOSE.
+    expose:
+      - "80"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
       interval: 30s
