@@ -19,7 +19,8 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+      // Context modules intentionally export both a provider and its hook.
+      'react-refresh/only-export-components': 'off',
     },
   },
 )

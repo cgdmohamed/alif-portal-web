@@ -19,14 +19,15 @@ export default function SchoolPackage() {
   const [upgradeOpen, setUpgradeOpen] = useState(false)
   const [pendingPackage, setPendingPackage] = useState<PackageWithSubscribers | null>(null)
   const [confirmed, setConfirmed] = useState(false)
+  const schoolId = school?.id
 
   useEffect(() => {
     packagesApi.list().then(setPackages).catch(() => setPackages([]))
   }, [])
 
   useEffect(() => {
-    if (school) schoolsApi.invoices(school.id).then(setInvoices).catch(() => setInvoices([]))
-  }, [school?.id])
+    if (schoolId) schoolsApi.invoices(schoolId).then(setInvoices).catch(() => setInvoices([]))
+  }, [schoolId])
 
   if (schoolLoading || !school) {
     return <div className="rounded-xl bg-surface-alt px-4 py-8 text-center text-sm text-ink-faint">جارٍ التحميل...</div>

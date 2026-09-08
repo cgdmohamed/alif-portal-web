@@ -24,7 +24,7 @@ export default function SupportChat() {
       .conversations()
       .then((rows) => {
         setConversations(rows)
-        if (!active && rows.length > 0) setActive(rows[0])
+        setActive((current) => current ?? rows[0] ?? null)
       })
       .catch((err) => setError(err instanceof ApiError ? err.message : 'تعذر تحميل المحادثات'))
   }
@@ -34,10 +34,11 @@ export default function SupportChat() {
     supportApi.agents().then(setAgents).catch(() => setAgents([]))
   }, [])
 
+  const activeId = active?.id
   useEffect(() => {
-    if (!active) return
-    supportApi.messages(active.id).then(setMessages).catch(() => setMessages([]))
-  }, [active?.id])
+    if (!activeId) return
+    supportApi.messages(activeId).then(setMessages).catch(() => setMessages([]))
+  }, [activeId])
 
   async function send(text: string) {
     if (!text.trim() || !active || active.status === 'closed') return

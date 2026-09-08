@@ -128,11 +128,9 @@ export default function Grading() {
                 placeholder="أحسنت! ركّز أكثر على الأمثلة..."
               />
             </Field>
-            {grade > 85 && (
-              <div className="rounded-xl bg-success-bg px-3.5 py-2.5 text-[11px] text-success">
-                سيتم إرسال رسالة تهنئة تلقائية — الدرجة أعلى من 85%
-              </div>
-            )}
+            <div className="rounded-xl bg-success-bg px-3.5 py-2.5 text-[11px] text-success">
+              سيصل الطالب إشعار بالدرجة بعد الحفظ
+            </div>
             <Button size="sm" onClick={submitGrade}>
               {saved === 'sent' ? 'تم الإرسال ✓' : 'إرسال التقييم'}
             </Button>

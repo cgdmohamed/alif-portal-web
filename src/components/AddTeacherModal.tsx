@@ -38,7 +38,7 @@ export default function AddTeacherModal({ open, onClose }: { open: boolean; onCl
         <div className="flex flex-col items-center gap-3 py-6 text-center">
           <span className="flex h-14 w-14 items-center justify-center rounded-full bg-success-bg text-2xl text-success">✓</span>
           <span className="font-sans text-lg font-extrabold text-navy">تمت إضافة المعلم بنجاح</span>
-          <p className="text-xs text-ink-faint">سيتم إرسال دعوة انضمام إلى بريده الإلكتروني</p>
+          <p className="text-xs text-ink-faint">أضف بيانات المعلم إلى سجل المدرسة</p>
           <Button size="sm" className="mt-2" onClick={close}>تم</Button>
         </div>
       ) : (

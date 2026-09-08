@@ -35,6 +35,7 @@ export default function Schools() {
   const [students, setStudents] = useState<StudentRosterEntry[] | null>(null)
 
   const school = schools?.[selected] ?? null
+  const schoolId = school?.id
 
   function loadSchools() {
     setError(null)
@@ -47,14 +48,14 @@ export default function Schools() {
   useEffect(loadSchools, [])
 
   useEffect(() => {
-    if (!school) return
+    if (!schoolId) return
     setApprovals(null)
     setClasses(null)
     setStudents(null)
-    if (tab === 'موافقات أولياء الأمور') schoolsApi.approvals(school.id).then(setApprovals)
-    if (tab === 'الفصول') schoolsApi.classes(school.id).then(setClasses)
-    if (tab === 'الطلاب') schoolsApi.students(school.id).then(setStudents)
-  }, [tab, school?.id])
+    if (tab === 'موافقات أولياء الأمور') schoolsApi.approvals(schoolId).then(setApprovals)
+    if (tab === 'الفصول') schoolsApi.classes(schoolId).then(setClasses)
+    if (tab === 'الطلاب') schoolsApi.students(schoolId).then(setStudents)
+  }, [tab, schoolId])
 
   async function decide(approvalId: string, status: 'approved' | 'rejected') {
     if (!school) return

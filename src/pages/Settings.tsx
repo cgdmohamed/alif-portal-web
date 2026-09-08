@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import PageHeader from '../components/ui/PageHeader'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
-import Switch from '../components/ui/Switch'
 import Badge from '../components/ui/Badge'
 import { Field } from '../components/ui/Input'
 import { settingsApi, type PlatformSettings, type ApiPdfTemplate } from '../lib/settingsApi'
@@ -24,10 +23,6 @@ export default function Settings() {
   const [smtpPort, setSmtpPort] = useState('')
   const [smsGateway, setSmsGateway] = useState('')
   const [smsSenderName, setSmsSenderName] = useState('')
-  const [minPasswordLength, setMinPasswordLength] = useState(8)
-  const [sessionMinutes, setSessionMinutes] = useState(60)
-  const [twoFA, setTwoFA] = useState(true)
-  const [autoCleanup, setAutoCleanup] = useState(false)
 
   const [agoraState, setAgoraState] = useState<ConnState>('idle')
   const [mailState, setMailState] = useState<ConnState>('idle')
@@ -46,10 +41,6 @@ export default function Settings() {
         setSmtpPort(s.smtp.port ? String(s.smtp.port) : '')
         setSmsGateway(s.sms.gateway ?? '')
         setSmsSenderName(s.sms.senderName ?? '')
-        setMinPasswordLength(s.security.minPasswordLength || 8)
-        setSessionMinutes(s.security.sessionMinutes || 60)
-        setTwoFA(s.security.twoFactorEnabled)
-        setAutoCleanup(s.storageAutoCleanup)
       })
       .catch((err) => setError(err instanceof ApiError ? err.message : 'تعذر تحميل الإعدادات'))
     settingsApi.pdfTemplates().then(setPdfTemplates).catch(() => setPdfTemplates([]))
@@ -69,8 +60,6 @@ export default function Settings() {
       agora: { appId: agoraAppId || null },
       smtp: { host: smtpHost || null, port: smtpPort ? Number(smtpPort) : null, encryption: null },
       sms: { gateway: smsGateway || null, senderName: smsSenderName || null },
-      security: { minPasswordLength, sessionMinutes, twoFactorEnabled: twoFA },
-      storageAutoCleanup: autoCleanup,
     })
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
@@ -123,25 +112,12 @@ export default function Settings() {
           <Field label="Port">
             <input value={smtpPort} onChange={(e) => setSmtpPort(e.target.value)} className="rounded-xl border border-line bg-surface px-4 py-3 text-sm focus:outline-none" />
           </Field>
+          <p className="text-[11px] text-ink-faint">بيانات SMTP الفعلية تُضبط من متغيرات البيئة على الخادم؛ الحقول هنا للتوثيق.</p>
           <div className="flex items-center gap-3">
             <Button variant="secondary" size="sm" className="w-fit" disabled={mailState === 'testing'} onClick={() => testConnection('smtp', setMailState)}>
               {mailState === 'testing' ? 'جارٍ الإرسال…' : 'إرسال بريد اختباري'}
             </Button>
             {mailState === 'success' && <Badge tone="success">تم الإرسال ✓</Badge>}
-          </div>
-        </Card>
-
-        <Card className="flex flex-col gap-3.5">
-          <span className="text-sm font-extrabold text-ink">الأمان</span>
-          <Field label="الحد الأدنى لطول كلمة السر">
-            <input type="number" value={minPasswordLength} onChange={(e) => setMinPasswordLength(Number(e.target.value))} className="rounded-xl border border-line bg-surface px-4 py-3 text-sm focus:outline-none" />
-          </Field>
-          <Field label="مدة الجلسة (دقيقة)">
-            <input type="number" value={sessionMinutes} onChange={(e) => setSessionMinutes(Number(e.target.value))} className="rounded-xl border border-line bg-surface px-4 py-3 text-sm focus:outline-none" />
-          </Field>
-          <div className="flex items-center justify-between rounded-xl bg-surface-alt px-4 py-3">
-            <span className="text-xs text-ink-soft">تفعيل التحقق بخطوتين (2FA)</span>
-            <Switch checked={twoFA} onChange={setTwoFA} />
           </div>
         </Card>
 
@@ -158,10 +134,6 @@ export default function Settings() {
               </div>
             </>
           )}
-          <div className="flex items-center justify-between rounded-xl bg-surface-alt px-4 py-3">
-            <span className="text-xs text-ink-soft">تنظيف تلقائي للتسجيلات الأقدم من 180 يوم</span>
-            <Switch checked={autoCleanup} onChange={setAutoCleanup} />
-          </div>
         </Card>
 
         <Card className="flex flex-col gap-3.5">
@@ -177,6 +149,7 @@ export default function Settings() {
               {smsState === 'testing' ? 'جارٍ الإرسال…' : 'إرسال رسالة اختبار'}
             </Button>
             {smsState === 'success' && <Badge tone="success">تم الإرسال ✓</Badge>}
+            {smsState === 'not-configured' && <Badge tone="warning">لا توجد بوابة SMS فعلية</Badge>}
           </div>
         </Card>
 

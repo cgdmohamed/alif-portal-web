@@ -299,7 +299,7 @@ export default function LiveSession() {
                     <Button variant="secondary" size="sm" onClick={() => openCompletion(activeBlock)}>تسجيل الإتمام</Button>
                   )}
                   {activeBlock.deliveryChannel === 'student_async_homework' && (
-                    <Badge tone="neutral">سيُرسل كواجب تلقائيًا بعد اللقاء</Badge>
+                    <Badge tone="neutral">مُعدّ كواجب لاحق</Badge>
                   )}
                 </div>
               )}

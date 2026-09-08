@@ -63,7 +63,7 @@ export default function AddSchoolModal({
           </span>
           <span className="font-sans text-lg font-extrabold text-navy">تمت إضافة المدرسة بنجاح</span>
           <p className="text-xs text-ink-faint">
-            سيتم إرسال دعوة انضمام إلى مدير المدرسة عبر البريد الإلكتروني
+            يمكنك إنشاء حساب مدير المدرسة من صفحة المستخدمين بعد إضافة المدرسة
           </p>
           <Button size="sm" className="mt-2" onClick={close}>
             تم
